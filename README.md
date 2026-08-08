@@ -6,7 +6,20 @@ VRChat などの MIDI 対応アプリから、ボタン・スライダー・相�
 > Built with [Grok](https://x.ai/grok) by xAI — 設計・実装の相談からコード生成まで Grok と一緒に進めました。
 
 ---
+## Demo
 
+ホットプラグ対応の動作デモ（動画付き）:
+
+> M5Stack AtomS3RとChainデバイスを使った簡易MIDIデバイス、ホットプラグに対応させた。  
+> 今後は [#M5ChainMIDI](https://x.com/search?q=%23M5ChainMIDI) でまとめる
+>
+> — [しめじ (@ctake_shimez)](https://x.com/ctake_shimez/status/2085917857997783502) · 2026-08-08
+
+📹 [Xで動画を見る](https://x.com/ctake_shimez/status/2085917857997783502)
+
+関連ポストは [#M5ChainMIDI](https://x.com/search?q=%23M5ChainMIDI&src=hashtag_click) でまとめています。
+
+---
 ## 特徴
 
 - **USB MIDI デバイス**として動作（追加ドライバ不要な環境が多いです）
