@@ -178,7 +178,7 @@ NOTE_JOY_BTN_BASE      // Joystick クリック Note
 
 ## ライセンス
 
-MIT License（必要に応じてリポジトリの `LICENSE` を参照）
+MIT License
 
 M5Stack 製品名・ライブラリは各権利者に帰属します。
 
