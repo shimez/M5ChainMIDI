@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>M5ChainMIDI Web Installer</title>
+  <meta name="description" content="M5ChainMIDI 1.0.0をAtomS3Rへブラウザからインストールします。">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+  <style>
+    :root { color-scheme:dark; --bg:#090d18; --card:#111827; --text:#f8fafc; --muted:#aab4c5; --line:#2a3850; --accent:#7c5cff; --accent2:#4f8cff; --ok:#59d499; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at 50% -10%,#24345d 0,transparent 38%),var(--bg); }
+    main { width:min(760px,calc(100% - 32px)); margin:0 auto; padding:56px 0 44px; }
+    .hero { text-align:center; margin-bottom:28px; }
+    h1 { margin:0; font-size:clamp(30px,7vw,48px); letter-spacing:-.04em; }
+    .lead { margin:13px auto 0; color:var(--muted); font-size:17px; line-height:1.7; }
+    .version { display:inline-flex; gap:8px; align-items:center; margin-top:16px; padding:7px 12px; border:1px solid #4b5b75; border-radius:999px; color:#d9e2f1; font-size:13px; }
+    .version::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 4px #59d49920; }
+    .unofficial { width:min(650px,100%); margin:18px auto 0; color:#c7d0df; font-size:13px; line-height:1.6; }
+    .card { padding:26px; border:1px solid var(--line); border-radius:22px; background:linear-gradient(180deg,#121b2c,#0f1726); box-shadow:0 24px 65px #0006; }
+    h2 { margin:0 0 10px; font-size:21px; }
+    p { color:var(--muted); line-height:1.7; }
+    .install { display:flex; justify-content:center; margin:26px 0 18px; }
+    esp-web-install-button::part(activate) { min-width:260px; padding:15px 24px; border:0; border-radius:12px; color:white; background:linear-gradient(135deg,var(--accent),var(--accent2)); font:700 16px inherit; cursor:pointer; box-shadow:0 12px 30px #536dfe3d; }
+    .unsupported { display:block; padding:13px; border-radius:10px; background:#391c2a; color:#ffd6e3; }
+    .note { margin:18px 0 0; padding:15px 17px; border:1px solid #3a4a64; border-radius:13px; background:#192337; color:#d5deed; font-size:14px; line-height:1.65; }
+    ol { margin:18px 0 0; padding-left:23px; color:#dce5f2; line-height:1.9; }
+    footer { margin-top:22px; text-align:center; color:#77849a; font-size:13px; }
+    footer a { color:#aebdf7; }
+    @media (max-width:520px) { main{padding-top:34px}.card{padding:21px} esp-web-install-button::part(activate){min-width:220px;width:100%} }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <h1>M5ChainMIDI</h1>
+      <p class="lead">AtomS3Rへファームウェアを、ブラウザから簡単にインストールできます。</p>
+      <span class="version">Stable version 1.0.0</span>
+      <p class="unofficial">M5ChainMIDIは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。</p>
+    </header>
+
+    <section class="card" aria-labelledby="install-title">
+      <h2 id="install-title">Web Installer</h2>
+      <p>AtomS3RをUSBデータケーブルでPCへ接続し、下のボタンから接続先を選択してください。</p>
+      <div class="install">
+        <esp-web-install-button manifest="manifest.json">
+          <button slot="activate" type="button">Install M5ChainMIDI</button>
+          <span slot="unsupported" class="unsupported">このブラウザはWeb Serialに対応していません。デスクトップ版ChromeまたはEdgeを使用してください。</span>
+          <span slot="not-allowed" class="unsupported">Web Installerを利用できない接続元です。HTTPSまたはlocalhostから開いてください。</span>
+        </esp-web-install-button>
+      </div>
+      <ol>
+        <li>AtomS3Rをデータ通信対応のUSBケーブルで接続します。</li>
+        <li>「Install M5ChainMIDI」を押し、AtomS3Rのシリアルポートを選びます。</li>
+        <li>画面の案内に従ってインストールを完了します。</li>
+        <li>再起動後、PCのMIDIデバイス一覧とAtomS3Rの画面を確認します。</li>
+      </ol>
+      <div class="note">ポートが表示されない場合は、AtomS3R本体のボタンを押しながらUSBへ接続してください。Arduino IDEやシリアルモニターなど、対象ポートを使用するアプリは事前に閉じてください。</div>
+    </section>
+
+    <footer>
+      <a href="https://github.com/shimez/M5ChainMIDI">GitHub</a> · M5ChainMIDI Web Installer
+    </footer>
+  </main>
+</body>
+</html>

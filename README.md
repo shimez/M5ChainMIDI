@@ -3,17 +3,18 @@
 M5Stack **Chainシリーズ**（Key / Angle / Encoder / Joystick / ToF）をUSB MIDIコントローラーとして使うファームウェアです。  
 VRChatやDAWなどのMIDI対応アプリから、ボタン、ノブ、ジョイスティック、距離センサーを外部ハードウェア入力として利用できます。
 
+> [!IMPORTANT]
+> M5ChainMIDIは個人が開発する非公式プロジェクトです。M5Stack Technology Co., Ltd.による公式製品ではなく、同社との提携または承認を示すものではありません。
+
 > Built with [Grok](https://x.ai/grok) by xAI — 設計・実装の相談からコード生成までGrokと一緒に進めました。
 
 ---
 
 ## Web Installer
 
-Preview版は、デスクトップ版ChromeまたはEdgeからAtomS3Rへ書き込めます。
+正式版は、デスクトップ版ChromeまたはEdgeからAtomS3Rへ書き込めます。
 
-**[M5ChainMIDI Preview Web Installer](https://shimez.github.io/M5ChainMIDI/installer/preview/)**
-
-> Preview版は開発中のファームウェアです。対応機種、注意事項、実機検証状況をInstaller画面で確認してから使用してください。
+**[M5ChainMIDI Web Installer](https://shimez.github.io/M5ChainMIDI/installer/)**
 
 Arduino IDEから書き込む場合は、後述の「開発環境」と「使い方」を参照してください。
 
@@ -128,9 +129,9 @@ VRChatなどでは`value - 64`をデルタとしてスライダーに加算す�
 
 ### Web Installerを使う
 
-1. [Preview Web Installer](https://shimez.github.io/M5ChainMIDI/installer/preview/)をデスクトップ版ChromeまたはEdgeで開く
+1. [Web Installer](https://shimez.github.io/M5ChainMIDI/installer/)をデスクトップ版ChromeまたはEdgeで開く
 2. AtomS3RをUSBデータケーブルでPCへ接続する
-3. `Install M5ChainMIDI Preview`を押す
+3. `Install M5ChainMIDI`を押す
 4. 書き込み対象のAtomS3Rを選択する
 5. 書き込みと再起動が完了するまで待つ
 
