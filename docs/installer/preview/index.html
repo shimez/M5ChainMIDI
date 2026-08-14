@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="M5ChainMIDI Preview firmware installer for M5Stack AtomS3R">
+  <title>M5ChainMIDI Preview Web Installer</title>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9e0ea;
+      --panel: #ffffff;
+      --page: #f3f6fb;
+      --blue: #3267e3;
+      --blue-dark: #234fb8;
+      --amber-bg: #fff7df;
+      --amber-line: #e5bb48;
+      --amber-ink: #674b00;
+      --esp-tools-button-color: #3267e3;
+      --esp-tools-button-text-color: #ffffff;
+      --esp-tools-button-border-radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(720px, calc(100% - 32px));
+      margin: 40px auto;
+    }
+
+    .hero {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 5px 11px;
+      border: 1px solid #a9bff3;
+      border-radius: 999px;
+      background: #eaf0ff;
+      color: #244da7;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+
+    h1 {
+      margin: 14px 0 5px;
+      font-size: clamp(28px, 6vw, 42px);
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .card {
+      margin-bottom: 16px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 8px 28px rgba(23, 32, 51, .08);
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .warning {
+      border-color: var(--amber-line);
+      background: var(--amber-bg);
+      color: var(--amber-ink);
+      box-shadow: none;
+    }
+
+    .warning strong { display: block; margin-bottom: 5px; }
+
+    ul, ol { margin: 8px 0 0; padding-left: 22px; }
+    li + li { margin-top: 6px; }
+
+    .device {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 5px 16px;
+      margin: 14px 0 20px;
+      padding: 14px;
+      border-radius: 11px;
+      background: #f7f9fc;
+    }
+
+    .device dt { color: var(--muted); font-weight: 600; }
+    .device dd { margin: 0; font-weight: 700; }
+
+    esp-web-install-button { display: block; }
+
+    esp-web-install-button button {
+      width: 100%;
+      padding: 14px 18px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--blue);
+      color: white;
+      font: inherit;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    esp-web-install-button button:hover { background: var(--blue-dark); }
+
+    .unsupported {
+      display: block;
+      padding: 12px;
+      border-radius: 9px;
+      background: #fff1f2;
+      color: #9f1239;
+    }
+
+    .small {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    footer {
+      padding: 6px 0 24px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    footer a { color: var(--blue-dark); }
+
+    @media (max-width: 520px) {
+      main { width: min(100% - 20px, 720px); margin-top: 22px; }
+      .card { padding: 18px; border-radius: 13px; }
+      .device { grid-template-columns: 1fr; gap: 0; }
+      .device dd + dt { margin-top: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <span class="eyebrow">PREVIEW BUILD</span>
+      <h1>M5ChainMIDI</h1>
+      <p class="subtitle">AtomS3Rへブラウザからファームウェアを書き込みます。</p>
+    </header>
+
+    <section class="card warning" aria-labelledby="preview-warning">
+      <strong id="preview-warning">このファームウェアは開発中のPreview版です</strong>
+      Chain ToFを含む各デバイスの実機検証を進めています。動作確認への協力を目的とした公開版であり、正式版ではありません。
+    </section>
+
+    <section class="card" aria-labelledby="install-heading">
+      <h2 id="install-heading">インストール</h2>
+      <p>対応するAtomS3RをUSBデータケーブルでPCへ接続してください。</p>
+
+      <dl class="device">
+        <dt>対応機種</dt><dd>M5Stack AtomS3R</dd>
+        <dt>構成</dt><dd>AtomS3R + Atomic ToChain Base</dd>
+        <dt>ファームウェア</dt><dd>M5ChainMIDI Preview</dd>
+      </dl>
+
+      <esp-web-install-button manifest="./manifest.json">
+        <button slot="activate" type="button">Install M5ChainMIDI Preview</button>
+        <span slot="unsupported" class="unsupported">
+          Web Serialに対応したデスクトップ版ChromeまたはEdgeで開いてください。
+        </span>
+        <span slot="not-allowed" class="unsupported">
+          Web Installerを利用できない接続元です。HTTPSまたはlocalhostから開いてください。
+        </span>
+      </esp-web-install-button>
+
+      <p class="small">書き込み中はUSBケーブルを抜かないでください。</p>
+    </section>
+
+    <section class="card" aria-labelledby="before-heading">
+      <h2 id="before-heading">実行前の確認</h2>
+      <ul>
+        <li>Arduino IDE、シリアルモニター、MIDIモニターなど、対象デバイスを使用するアプリを閉じてください。</li>
+        <li>USB充電専用ではなく、データ通信に対応したUSBケーブルを使用してください。</li>
+        <li>ポートが表示されない場合は、AtomS3R本体のボタンを押しながらUSBへ接続してください。</li>
+        <li>接続先一覧では、書き込み対象のAtomS3Rを選択してください。</li>
+      </ul>
+    </section>
+
+    <section class="card" aria-labelledby="after-heading">
+      <h2 id="after-heading">インストール後</h2>
+      <ol>
+        <li>AtomS3Rが再起動するまで待ちます。</li>
+        <li>PCのMIDIデバイス一覧にM5ChainMIDIが表示されることを確認します。</li>
+        <li>Chainデバイスが画面上で正しく認識されることを確認します。</li>
+        <li>MIDIモニターやDAWを使い、NoteおよびCCメッセージを確認します。</li>
+      </ol>
+    </section>
+
+    <footer>
+      M5ChainMIDI Preview Web Installer<br>
+      <a href="https://github.com/shimez/M5ChainMIDI">Project README</a>
+    </footer>
+  </main>
+</body>
+</html>
