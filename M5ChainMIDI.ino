@@ -9,6 +9,7 @@
 #define MAX_DEVICES 16
 
 const uint8_t MIDI_CH = 1;
+const char FIRMWARE_VERSION[] = "1.1.0";
 
 const uint8_t NOTE_KEY_BASE     = 60;
 const uint8_t NOTE_ENC_BTN_BASE = 80;
@@ -29,7 +30,8 @@ const uint8_t ANALOG_CC_THRESHOLD = 2;
 // ----- Chain ToF -----
 
 // 30mm以下をCC 127、200mmをCC 0へ変換する。
-// 200mmを超える測定値はMIDI CCを送信しない。
+// 200mm以上を検出したときはCC 0を一度だけ送信し、
+// 再び200mm未満へ戻るまで送信を停止する。
 const uint16_t TOF_SENSOR_MIN_MM = 30;
 const uint16_t TOF_NEAR_MM       = 30;
 const uint16_t TOF_FAR_MM        = 200;
@@ -69,6 +71,7 @@ uint8_t lastToFCC[MAX_DEVICES];
 uint16_t filteredToFDistance[MAX_DEVICES];
 uint32_t lastToFSampleMs[MAX_DEVICES];
 bool tofFilterInitialized[MAX_DEVICES];
+bool tofOutOfRange[MAX_DEVICES];
 
 uint32_t lastRescanMs = 0;
 bool chainWasConnected = false;
@@ -78,7 +81,7 @@ void drawHeader() {
   M5.Display.setTextColor(TFT_CYAN, TFT_BLACK);
   M5.Display.setTextSize(1);
   M5.Display.setCursor(2, 2);
-  M5.Display.println("Chain MIDI");
+  M5.Display.printf("Chain MIDI v%s\n", FIRMWARE_VERSION);
   M5.Display.drawFastHLine(0, 14, 128, TFT_DARKGREY);
 }
 
@@ -188,6 +191,7 @@ void resetToFStates() {
   memset(filteredToFDistance, 0, sizeof(filteredToFDistance));
   memset(lastToFSampleMs, 0, sizeof(lastToFSampleMs));
   memset(tofFilterInitialized, 0, sizeof(tofFilterInitialized));
+  memset(tofOutOfRange, 0, sizeof(tofOutOfRange));
 }
 
 void resetInputStates() {
@@ -630,23 +634,43 @@ void loop() {
       continue;
     }
 
-    // 最大操作距離を超えたら送信を止める。
-    // フィルターもリセットし、範囲内へ戻った最初の測定値から再開する。
-    if (rawDistance > TOF_FAR_MM) {
+    // 最大操作距離以上を初めて検出したときだけCC 0を送信する。
+    // 以降は範囲内へ戻るまでMIDI送信を停止する。
+    if (rawDistance >= TOF_FAR_MM) {
+      if (!tofOutOfRange[i]) {
+        uint8_t ccNumber = CC_TOF_BASE + i;
+
+        MIDI.controlChange(ccNumber, 0, MIDI_CH);
+        lastToFCC[i] = 0;
+        tofOutOfRange[i] = true;
+
+        snprintf(
+            buffer,
+            sizeof(buffer),
+            "CC%d=0 OUT",
+            ccNumber
+        );
+        drawStatus("ToF", buffer);
+      }
+
       tofFilterInitialized[i] = false;
       continue;
+    }
+
+    // 範囲内へ戻った直後は、現在値から平滑化とCC送信を再開する。
+    if (tofOutOfRange[i]) {
+      tofOutOfRange[i] = false;
+      tofFilterInitialized[i] = false;
+      lastToFCC[i] = 0xFF;
     }
 
     if (rawDistance < TOF_SENSOR_MIN_MM) {
       rawDistance = TOF_SENSOR_MIN_MM;
     }
 
-    // 範囲の両端は平滑化せず、CC 127 / 0へ確実に到達させる。
+    // 最小距離では平滑化せず、CC 127へ確実に到達させる。
     if (rawDistance <= TOF_NEAR_MM) {
       filteredToFDistance[i] = TOF_NEAR_MM;
-      tofFilterInitialized[i] = true;
-    } else if (rawDistance >= TOF_FAR_MM) {
-      filteredToFDistance[i] = TOF_FAR_MM;
       tofFilterInitialized[i] = true;
     } else if (!tofFilterInitialized[i]) {
       filteredToFDistance[i] = rawDistance;

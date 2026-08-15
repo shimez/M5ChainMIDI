@@ -18,7 +18,7 @@ https://shimez.github.io/M5ChainMIDI/installer/
 Arduino IDEの`Sketch` → `Export Compiled Binary`で生成したmergedバイナリを、次の名前で配置します。
 
 ```text
-docs/installer/firmware/M5ChainMIDI-1.0.0-AtomS3R-merged.bin
+docs/installer/firmware/M5ChainMIDI-1.1.0-AtomS3R-merged.bin
 ```
 
 `manifest.json`は、このファイルをESP32-S3のoffset `0x0`へ書き込みます。
@@ -36,7 +36,7 @@ docs/installer/firmware/M5ChainMIDI-1.0.0-AtomS3R-merged.bin
 SHA-256はPowerShellで確認できます。
 
 ```powershell
-Get-FileHash .\firmware\M5ChainMIDI-1.0.0-AtomS3R-merged.bin -Algorithm SHA256
+Get-FileHash .\firmware\M5ChainMIDI-1.1.0-AtomS3R-merged.bin -Algorithm SHA256
 ```
 
 ## ローカル確認

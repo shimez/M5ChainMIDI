@@ -1,6 +1,6 @@
 {
   "name": "M5ChainMIDI",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
   "builds": [
@@ -9,7 +9,7 @@
       "improv": false,
       "parts": [
         {
-          "path": "firmware/M5ChainMIDI-1.0.0-AtomS3R-merged.bin",
+          "path": "firmware/M5ChainMIDI-1.1.0-AtomS3R-merged.bin",
           "offset": 0
         }
       ]
