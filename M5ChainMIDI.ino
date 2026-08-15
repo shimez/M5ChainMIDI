@@ -10,13 +10,9 @@
 
 const uint8_t MIDI_CH = 1;
 
-// ----- MIDI Note -----
-
 const uint8_t NOTE_KEY_BASE     = 60;
 const uint8_t NOTE_ENC_BTN_BASE = 80;
 const uint8_t NOTE_JOY_BTN_BASE = 90;
-
-// ----- MIDI CC -----
 
 const uint8_t CC_ANGLE_BASE   = 1;
 const uint8_t CC_ENC_REL_BASE = 20;
@@ -24,45 +20,31 @@ const uint8_t CC_JOY_X_BASE   = 40;
 const uint8_t CC_JOY_Y_BASE   = 41;
 const uint8_t CC_TOF_BASE     = 80;
 
-// ----- Angle -----
-
 const int ANGLE_MIN = 0;
 const int ANGLE_MAX = 4095;
 
-// 前回送信したCC値との差がこの値以上なら送信
+// 前回送信したCC値との差がこの値以上なら送信する。
 const uint8_t ANALOG_CC_THRESHOLD = 2;
 
 // ----- Chain ToF -----
 
-// センサーの公式有効測距範囲
+// 30mm以下をCC 127、200mmをCC 0へ変換する。
+// 200mmを超える測定値はMIDI CCを送信しない。
 const uint16_t TOF_SENSOR_MIN_MM = 30;
-const uint16_t TOF_SENSOR_MAX_MM = 2000;
+const uint16_t TOF_NEAR_MM       = 30;
+const uint16_t TOF_FAR_MM        = 200;
 
-// MIDI操作に使用する距離範囲
-// 50mm以下  = CC 127
-// 1000mm以上 = CC 0
-const uint16_t TOF_NEAR_MM = 50;
-const uint16_t TOF_FAR_MM  = 1000;
-
-// ToFセンサーの測定時間
-// M5Chainの設定可能範囲は20～200ms
+// M5Chainの設定可能範囲は20～200ms。
 const uint16_t TOF_MEASURE_TIME_MS = 33;
-
-// ToFの読み取り周期
 const uint32_t TOF_SAMPLE_INTERVAL_MS = 40;
 
-// 平滑化の強さ
-// 大きいほど滑らかになるが反応は遅くなる
+// 大きいほど滑らかになるが反応は遅くなる。
 const uint8_t TOF_FILTER_STRENGTH = 4;
-
-// ----- Rescan -----
 
 const uint32_t RESCAN_INTERVAL_MS = 1000;
 
 USBMIDI MIDI;
 Chain M5Chain;
-
-// ----- Device IDs -----
 
 uint8_t keyIds[MAX_DEVICES];
 uint8_t angleIds[MAX_DEVICES];
@@ -70,32 +52,23 @@ uint8_t encoderIds[MAX_DEVICES];
 uint8_t joyIds[MAX_DEVICES];
 uint8_t tofIds[MAX_DEVICES];
 
-// ----- Device counts -----
-
 uint8_t keyCount = 0;
 uint8_t angleCount = 0;
 uint8_t encoderCount = 0;
 uint8_t joyCount = 0;
 uint8_t tofCount = 0;
 
-// ----- Previous input states -----
-
 uint8_t lastKeyStatus[MAX_DEVICES];
 uint8_t lastEncBtn[MAX_DEVICES];
 uint8_t lastJoyBtn[MAX_DEVICES];
-
 uint8_t lastAngleCC[MAX_DEVICES];
 uint8_t lastJoyXCC[MAX_DEVICES];
 uint8_t lastJoyYCC[MAX_DEVICES];
-
-// ----- ToF states -----
 
 uint8_t lastToFCC[MAX_DEVICES];
 uint16_t filteredToFDistance[MAX_DEVICES];
 uint32_t lastToFSampleMs[MAX_DEVICES];
 bool tofFilterInitialized[MAX_DEVICES];
-
-// ----- Other states -----
 
 uint32_t lastRescanMs = 0;
 bool chainWasConnected = false;
@@ -113,7 +86,6 @@ void drawDeviceSummary() {
   M5.Display.fillRect(0, 16, 128, 16, TFT_BLACK);
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
   M5.Display.setCursor(2, 18);
-
   M5.Display.printf(
       "K%d A%d E%d J%d T%d",
       keyCount,
@@ -122,7 +94,6 @@ void drawDeviceSummary() {
       joyCount,
       tofCount
   );
-
   M5.Display.drawFastHLine(0, 32, 128, TFT_DARKGREY);
 }
 
@@ -146,35 +117,20 @@ void drawStatus(const char* action, const char* value) {
   M5.Display.println(value);
 }
 
-bool sameIds(
-    const uint8_t* first,
-    const uint8_t* second,
-    uint8_t count
-) {
+bool sameIds(const uint8_t* first, const uint8_t* second, uint8_t count) {
   for (uint8_t i = 0; i < count; i++) {
     if (first[i] != second[i]) {
       return false;
     }
   }
-
   return true;
 }
 
-// int8_t（-128～127）をMIDI CC（0～127）へ変換
 uint8_t joyToCC(int8_t value) {
-  long mapped = map(
-      (long)value,
-      -128,
-      127,
-      0,
-      127
-  );
-
+  long mapped = map((long)value, -128, 127, 0, 127);
   return (uint8_t)constrain(mapped, 0, 127);
 }
 
-// 前回送信値との差がしきい値以上か判定
-// 0xFFは未送信状態を表す
 bool analogCCChanged(
     uint8_t current,
     uint8_t previous,
@@ -185,22 +141,16 @@ bool analogCCChanged(
   }
 
   int difference = (int)current - (int)previous;
-
   if (difference < 0) {
     difference = -difference;
   }
-
   return difference >= threshold;
 }
 
-// ToF距離をMIDI CCへ変換
-// 近いほど大きな値になる
+// 30mm以下: CC 127
+// 200mm:    CC 0
 uint8_t tofDistanceToCC(uint16_t distanceMm) {
-  distanceMm = constrain(
-      distanceMm,
-      TOF_NEAR_MM,
-      TOF_FAR_MM
-  );
+  distanceMm = constrain(distanceMm, TOF_NEAR_MM, TOF_FAR_MM);
 
   long cc = map(
       distanceMm,
@@ -213,67 +163,40 @@ uint8_t tofDistanceToCC(uint16_t distanceMm) {
   return (uint8_t)constrain(cc, 0, 127);
 }
 
-// 押下中として記録されている全ノートを解放
 void releaseAllNotes() {
   for (uint8_t i = 0; i < keyCount; i++) {
     if (lastKeyStatus[i]) {
-      MIDI.noteOff(
-          NOTE_KEY_BASE + i,
-          0,
-          MIDI_CH
-      );
+      MIDI.noteOff(NOTE_KEY_BASE + i, 0, MIDI_CH);
     }
   }
 
   for (uint8_t i = 0; i < encoderCount; i++) {
     if (lastEncBtn[i]) {
-      MIDI.noteOff(
-          NOTE_ENC_BTN_BASE + i,
-          0,
-          MIDI_CH
-      );
+      MIDI.noteOff(NOTE_ENC_BTN_BASE + i, 0, MIDI_CH);
     }
   }
 
   for (uint8_t i = 0; i < joyCount; i++) {
     if (lastJoyBtn[i]) {
-      MIDI.noteOff(
-          NOTE_JOY_BTN_BASE + i,
-          0,
-          MIDI_CH
-      );
+      MIDI.noteOff(NOTE_JOY_BTN_BASE + i, 0, MIDI_CH);
     }
   }
 }
 
 void resetToFStates() {
   memset(lastToFCC, 0xFF, sizeof(lastToFCC));
-  memset(
-      filteredToFDistance,
-      0,
-      sizeof(filteredToFDistance)
-  );
-  memset(
-      lastToFSampleMs,
-      0,
-      sizeof(lastToFSampleMs)
-  );
-  memset(
-      tofFilterInitialized,
-      0,
-      sizeof(tofFilterInitialized)
-  );
+  memset(filteredToFDistance, 0, sizeof(filteredToFDistance));
+  memset(lastToFSampleMs, 0, sizeof(lastToFSampleMs));
+  memset(tofFilterInitialized, 0, sizeof(tofFilterInitialized));
 }
 
 void resetInputStates() {
   memset(lastKeyStatus, 0, sizeof(lastKeyStatus));
   memset(lastEncBtn, 0, sizeof(lastEncBtn));
   memset(lastJoyBtn, 0, sizeof(lastJoyBtn));
-
   memset(lastAngleCC, 0xFF, sizeof(lastAngleCC));
   memset(lastJoyXCC, 0xFF, sizeof(lastJoyXCC));
   memset(lastJoyYCC, 0xFF, sizeof(lastJoyYCC));
-
   resetToFStates();
 }
 
@@ -281,20 +204,15 @@ void configureToFDevices() {
   for (uint8_t i = 0; i < tofCount; i++) {
     uint8_t operationStatus = 0;
 
-    chain_status_t result =
-        M5Chain.setToFMeasureTime(
-            tofIds[i],
-            TOF_MEASURE_TIME_MS,
-            &operationStatus
-        );
+    chain_status_t result = M5Chain.setToFMeasureTime(
+        tofIds[i],
+        TOF_MEASURE_TIME_MS,
+        &operationStatus
+    );
 
-    if (
-        result != CHAIN_OK ||
-        !operationStatus
-    ) {
+    if (result != CHAIN_OK || !operationStatus) {
       Serial.printf(
-          "ToF ID %u: set measure time failed"
-          " status=%d operation=%u\n",
+          "ToF ID %u: set measure time failed status=%d operation=%u\n",
           tofIds[i],
           result,
           operationStatus
@@ -302,20 +220,15 @@ void configureToFDevices() {
     }
 
     operationStatus = 0;
-
     result = M5Chain.setToFMeasureMode(
         tofIds[i],
         CHAIN_TOF_MODE_CONTINUOUS,
         &operationStatus
     );
 
-    if (
-        result != CHAIN_OK ||
-        !operationStatus
-    ) {
+    if (result != CHAIN_OK || !operationStatus) {
       Serial.printf(
-          "ToF ID %u: set continuous mode failed"
-          " status=%d operation=%u\n",
+          "ToF ID %u: set continuous mode failed status=%d operation=%u\n",
           tofIds[i],
           result,
           operationStatus
@@ -339,15 +252,9 @@ bool scanDevices(bool forceRedraw) {
 
   if (!M5Chain.isDeviceConnected()) {
     bool hadDevices =
-        keyCount ||
-        angleCount ||
-        encoderCount ||
-        joyCount ||
-        tofCount;
+        keyCount || angleCount || encoderCount || joyCount || tofCount;
 
     if (hadDevices || forceRedraw) {
-      // 押したまま切断された場合の
-      // ノート鳴りっぱなしを防止
       releaseAllNotes();
 
       keyCount = 0;
@@ -357,28 +264,18 @@ bool scanDevices(bool forceRedraw) {
       tofCount = 0;
 
       resetInputStates();
-
       drawDeviceSummary();
       drawStatus("No Device", "-");
 
       Serial.println("Chain disconnected");
       return true;
     }
-
     return false;
   }
 
   uint16_t deviceCount = 0;
-
-  // getDeviceNum()はchain_status_tを返す
-  if (
-      M5Chain.getDeviceNum(
-          &deviceCount
-      ) != CHAIN_OK
-  ) {
-    Serial.println(
-        "Rescan failed: getDeviceNum"
-    );
+  if (M5Chain.getDeviceNum(&deviceCount) != CHAIN_OK) {
+    Serial.println("Rescan failed: getDeviceNum");
     return false;
   }
 
@@ -391,54 +288,37 @@ bool scanDevices(bool forceRedraw) {
   }
 
   device_list_t* list =
-      (device_list_t*)malloc(
-          sizeof(device_list_t)
-      );
+      (device_list_t*)malloc(sizeof(device_list_t));
 
   if (!list) {
-    Serial.println(
-        "Rescan failed: list allocation"
-    );
+    Serial.println("Rescan failed: list allocation");
     return false;
   }
 
   list->count = deviceCount;
-  list->devices =
-      (device_info_t*)malloc(
-          sizeof(device_info_t) *
-          deviceCount
-      );
+  list->devices = (device_info_t*)malloc(
+      sizeof(device_info_t) * deviceCount
+  );
 
   if (!list->devices) {
-    Serial.println(
-        "Rescan failed: device allocation"
-    );
+    Serial.println("Rescan failed: device allocation");
     free(list);
     return false;
   }
 
-  // getDeviceList()はboolを返す
-  // true = 成功、false = 失敗
+  // getDeviceList()はboolを返す。
   if (!M5Chain.getDeviceList(list)) {
-    Serial.println(
-        "Rescan failed: getDeviceList"
-    );
+    Serial.println("Rescan failed: getDeviceList");
     free(list->devices);
     free(list);
     return false;
   }
 
   for (uint16_t i = 0; i < list->count; i++) {
-    uint8_t id =
-        (uint8_t)list->devices[i].id;
+    uint8_t id = (uint8_t)list->devices[i].id;
+    uint16_t type = list->devices[i].device_type;
 
-    uint16_t type =
-        list->devices[i].device_type;
-
-    if (
-        type == CHAIN_KEY_TYPE_CODE &&
-        newKeyCount < MAX_DEVICES
-    ) {
+    if (type == CHAIN_KEY_TYPE_CODE && newKeyCount < MAX_DEVICES) {
       newKeyIds[newKeyCount++] = id;
     } else if (
         type == CHAIN_ANGLE_TYPE_CODE &&
@@ -472,38 +352,16 @@ bool scanDevices(bool forceRedraw) {
       newEncoderCount != encoderCount ||
       newJoyCount != joyCount ||
       newToFCount != tofCount ||
-      !sameIds(
-          keyIds,
-          newKeyIds,
-          newKeyCount
-      ) ||
-      !sameIds(
-          angleIds,
-          newAngleIds,
-          newAngleCount
-      ) ||
-      !sameIds(
-          encoderIds,
-          newEncoderIds,
-          newEncoderCount
-      ) ||
-      !sameIds(
-          joyIds,
-          newJoyIds,
-          newJoyCount
-      ) ||
-      !sameIds(
-          tofIds,
-          newToFIds,
-          newToFCount
-      );
+      !sameIds(keyIds, newKeyIds, newKeyCount) ||
+      !sameIds(angleIds, newAngleIds, newAngleCount) ||
+      !sameIds(encoderIds, newEncoderIds, newEncoderCount) ||
+      !sameIds(joyIds, newJoyIds, newJoyCount) ||
+      !sameIds(tofIds, newToFIds, newToFCount);
 
   if (!changed && !forceRedraw) {
     return false;
   }
 
-  // 構成を置き換える前に、
-  // 旧構成の押下中ノートを解放
   releaseAllNotes();
 
   keyCount = newKeyCount;
@@ -512,35 +370,11 @@ bool scanDevices(bool forceRedraw) {
   joyCount = newJoyCount;
   tofCount = newToFCount;
 
-  memcpy(
-      keyIds,
-      newKeyIds,
-      newKeyCount
-  );
-
-  memcpy(
-      angleIds,
-      newAngleIds,
-      newAngleCount
-  );
-
-  memcpy(
-      encoderIds,
-      newEncoderIds,
-      newEncoderCount
-  );
-
-  memcpy(
-      joyIds,
-      newJoyIds,
-      newJoyCount
-  );
-
-  memcpy(
-      tofIds,
-      newToFIds,
-      newToFCount
-  );
+  memcpy(keyIds, newKeyIds, newKeyCount);
+  memcpy(angleIds, newAngleIds, newAngleCount);
+  memcpy(encoderIds, newEncoderIds, newEncoderCount);
+  memcpy(joyIds, newJoyIds, newJoyCount);
+  memcpy(tofIds, newToFIds, newToFCount);
 
   resetInputStates();
   configureToFDevices();
@@ -548,7 +382,6 @@ bool scanDevices(bool forceRedraw) {
   drawDeviceSummary();
 
   char buffer[32];
-
   snprintf(
       buffer,
       sizeof(buffer),
@@ -561,7 +394,6 @@ bool scanDevices(bool forceRedraw) {
   );
 
   drawStatus("Rescan", buffer);
-
   Serial.printf(
       "Rescan K%d A%d E%d J%d T%d\n",
       keyCount,
@@ -576,30 +408,20 @@ bool scanDevices(bool forceRedraw) {
 
 void setup() {
   auto config = M5.config();
-
   M5.begin(config);
 
   M5.Display.setRotation(3);
   M5.Display.setBrightness(80);
 
   drawHeader();
-
-  M5.Display.setTextColor(
-      TFT_WHITE,
-      TFT_BLACK
-  );
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
   M5.Display.setCursor(2, 20);
   M5.Display.println("Init MIDI...");
 
   MIDI.begin();
   USB.begin();
 
-  M5Chain.begin(
-      &Serial2,
-      115200,
-      RXD_PIN,
-      TXD_PIN
-  );
+  M5Chain.begin(&Serial2, 115200, RXD_PIN, TXD_PIN);
 
   resetInputStates();
 
@@ -610,26 +432,21 @@ void setup() {
   scanDevices(true);
 
   lastRescanMs = millis();
-  chainWasConnected =
-      M5Chain.isDeviceConnected();
+  chainWasConnected = M5Chain.isDeviceConnected();
 }
 
 void loop() {
   M5.update();
 
   char buffer[32];
-
   uint32_t now = millis();
-  bool connected =
-      M5Chain.isDeviceConnected();
+  bool connected = M5Chain.isDeviceConnected();
 
   if (
       connected != chainWasConnected ||
-      now - lastRescanMs >=
-          RESCAN_INTERVAL_MS
+      now - lastRescanMs >= RESCAN_INTERVAL_MS
   ) {
     scanDevices(false);
-
     lastRescanMs = now;
     chainWasConnected = connected;
   }
@@ -639,53 +456,19 @@ void loop() {
   for (uint8_t i = 0; i < keyCount; i++) {
     uint8_t status = 0;
 
-    if (
-        M5Chain.getKeyButtonStatus(
-            keyIds[i],
-            &status
-        ) != CHAIN_OK
-    ) {
+    if (M5Chain.getKeyButtonStatus(keyIds[i], &status) != CHAIN_OK) {
       continue;
     }
 
-    uint8_t note =
-        NOTE_KEY_BASE + i;
+    uint8_t note = NOTE_KEY_BASE + i;
 
-    if (
-        status &&
-        !lastKeyStatus[i]
-    ) {
-      MIDI.noteOn(
-          note,
-          100,
-          MIDI_CH
-      );
-
-      snprintf(
-          buffer,
-          sizeof(buffer),
-          "NoteOn %d",
-          note
-      );
-
+    if (status && !lastKeyStatus[i]) {
+      MIDI.noteOn(note, 100, MIDI_CH);
+      snprintf(buffer, sizeof(buffer), "NoteOn %d", note);
       drawStatus("Key", buffer);
-    } else if (
-        !status &&
-        lastKeyStatus[i]
-    ) {
-      MIDI.noteOff(
-          note,
-          0,
-          MIDI_CH
-      );
-
-      snprintf(
-          buffer,
-          sizeof(buffer),
-          "NoteOff %d",
-          note
-      );
-
+    } else if (!status && lastKeyStatus[i]) {
+      MIDI.noteOff(note, 0, MIDI_CH);
+      snprintf(buffer, sizeof(buffer), "NoteOff %d", note);
       drawStatus("Key", buffer);
     }
 
@@ -694,100 +477,46 @@ void loop() {
 
   // ----- Angle -----
 
-  for (
-      uint8_t i = 0;
-      i < angleCount;
-      i++
-  ) {
+  for (uint8_t i = 0; i < angleCount; i++) {
     uint16_t raw = 0;
 
-    if (
-        M5Chain.getAngle12BitAdc(
-            angleIds[i],
-            &raw
-        ) != CHAIN_OK
-    ) {
+    if (M5Chain.getAngle12BitAdc(angleIds[i], &raw) != CHAIN_OK) {
       continue;
     }
 
-    int ccValue = map(
-        constrain(
-            raw,
-            ANGLE_MIN,
-            ANGLE_MAX
-        ),
+    uint8_t currentCC = (uint8_t)map(
+        constrain(raw, ANGLE_MIN, ANGLE_MAX),
         ANGLE_MIN,
         ANGLE_MAX,
         0,
         127
     );
 
-    uint8_t currentCC =
-        (uint8_t)ccValue;
-
-    if (
-        !analogCCChanged(
-            currentCC,
-            lastAngleCC[i]
-        )
-    ) {
+    if (!analogCCChanged(currentCC, lastAngleCC[i])) {
       continue;
     }
 
-    uint8_t ccNumber =
-        CC_ANGLE_BASE + i;
-
-    MIDI.controlChange(
-        ccNumber,
-        currentCC,
-        MIDI_CH
-    );
-
+    uint8_t ccNumber = CC_ANGLE_BASE + i;
+    MIDI.controlChange(ccNumber, currentCC, MIDI_CH);
     lastAngleCC[i] = currentCC;
 
-    snprintf(
-        buffer,
-        sizeof(buffer),
-        "CC%d=%d",
-        ccNumber,
-        currentCC
-    );
-
+    snprintf(buffer, sizeof(buffer), "CC%d=%d", ccNumber, currentCC);
     drawStatus("Angle", buffer);
   }
 
   // ----- Encoder -----
 
-  for (
-      uint8_t i = 0;
-      i < encoderCount;
-      i++
-  ) {
+  for (uint8_t i = 0; i < encoderCount; i++) {
     int16_t increment = 0;
 
     if (
-        M5Chain.getEncoderIncValue(
-            encoderIds[i],
-            &increment
-        ) == CHAIN_OK &&
+        M5Chain.getEncoderIncValue(encoderIds[i], &increment) == CHAIN_OK &&
         increment != 0
     ) {
-      int delta =
-          constrain(
-              increment,
-              -63,
-              63
-          );
+      int delta = constrain(increment, -63, 63);
+      uint8_t ccNumber = CC_ENC_REL_BASE + i;
 
-      uint8_t ccNumber =
-          CC_ENC_REL_BASE + i;
-
-      MIDI.controlChange(
-          ccNumber,
-          (uint8_t)(64 + delta),
-          MIDI_CH
-      );
-
+      MIDI.controlChange(ccNumber, (uint8_t)(64 + delta), MIDI_CH);
       snprintf(
           buffer,
           sizeof(buffer),
@@ -795,56 +524,22 @@ void loop() {
           ccNumber,
           increment
       );
-
       drawStatus("EncRot", buffer);
     }
 
     uint8_t button = 0;
-
     if (
-        M5Chain.getEncoderButtonStatus(
-            encoderIds[i],
-            &button
-        ) == CHAIN_OK
+        M5Chain.getEncoderButtonStatus(encoderIds[i], &button) == CHAIN_OK
     ) {
-      uint8_t note =
-          NOTE_ENC_BTN_BASE + i;
+      uint8_t note = NOTE_ENC_BTN_BASE + i;
 
-      if (
-          button &&
-          !lastEncBtn[i]
-      ) {
-        MIDI.noteOn(
-            note,
-            100,
-            MIDI_CH
-        );
-
-        snprintf(
-            buffer,
-            sizeof(buffer),
-            "NoteOn %d",
-            note
-        );
-
+      if (button && !lastEncBtn[i]) {
+        MIDI.noteOn(note, 100, MIDI_CH);
+        snprintf(buffer, sizeof(buffer), "NoteOn %d", note);
         drawStatus("EncBtn", buffer);
-      } else if (
-          !button &&
-          lastEncBtn[i]
-      ) {
-        MIDI.noteOff(
-            note,
-            0,
-            MIDI_CH
-        );
-
-        snprintf(
-            buffer,
-            sizeof(buffer),
-            "NoteOff %d",
-            note
-        );
-
+      } else if (!button && lastEncBtn[i]) {
+        MIDI.noteOff(note, 0, MIDI_CH);
+        snprintf(buffer, sizeof(buffer), "NoteOff %d", note);
         drawStatus("EncBtn", buffer);
       }
 
@@ -854,47 +549,21 @@ void loop() {
 
   // ----- Joystick -----
 
-  for (
-      uint8_t i = 0;
-      i < joyCount;
-      i++
-  ) {
+  for (uint8_t i = 0; i < joyCount; i++) {
     int8_t x = 0;
     int8_t y = 0;
 
     if (
-        M5Chain.getJoystickMappedInt8Value(
-            joyIds[i],
-            &x,
-            &y
-        ) == CHAIN_OK
+        M5Chain.getJoystickMappedInt8Value(joyIds[i], &x, &y) == CHAIN_OK
     ) {
-      uint8_t currentX =
-          joyToCC(x);
+      uint8_t currentX = joyToCC(x);
+      uint8_t currentY = joyToCC(y);
+      uint8_t ccNumberX = CC_JOY_X_BASE + i * 2;
+      uint8_t ccNumberY = CC_JOY_Y_BASE + i * 2;
 
-      uint8_t currentY =
-          joyToCC(y);
-
-      uint8_t ccNumberX =
-          CC_JOY_X_BASE + i * 2;
-
-      uint8_t ccNumberY =
-          CC_JOY_Y_BASE + i * 2;
-
-      if (
-          analogCCChanged(
-              currentX,
-              lastJoyXCC[i]
-          )
-      ) {
-        MIDI.controlChange(
-            ccNumberX,
-            currentX,
-            MIDI_CH
-        );
-
+      if (analogCCChanged(currentX, lastJoyXCC[i])) {
+        MIDI.controlChange(ccNumberX, currentX, MIDI_CH);
         lastJoyXCC[i] = currentX;
-
         snprintf(
             buffer,
             sizeof(buffer),
@@ -902,24 +571,12 @@ void loop() {
             ccNumberX,
             currentX
         );
-
         drawStatus("Joy", buffer);
       }
 
-      if (
-          analogCCChanged(
-              currentY,
-              lastJoyYCC[i]
-          )
-      ) {
-        MIDI.controlChange(
-            ccNumberY,
-            currentY,
-            MIDI_CH
-        );
-
+      if (analogCCChanged(currentY, lastJoyYCC[i])) {
+        MIDI.controlChange(ccNumberY, currentY, MIDI_CH);
         lastJoyYCC[i] = currentY;
-
         snprintf(
             buffer,
             sizeof(buffer),
@@ -927,57 +584,23 @@ void loop() {
             ccNumberY,
             currentY
         );
-
         drawStatus("Joy", buffer);
       }
     }
 
     uint8_t button = 0;
-
     if (
-        M5Chain.getJoystickButtonStatus(
-            joyIds[i],
-            &button
-        ) == CHAIN_OK
+        M5Chain.getJoystickButtonStatus(joyIds[i], &button) == CHAIN_OK
     ) {
-      uint8_t note =
-          NOTE_JOY_BTN_BASE + i;
+      uint8_t note = NOTE_JOY_BTN_BASE + i;
 
-      if (
-          button &&
-          !lastJoyBtn[i]
-      ) {
-        MIDI.noteOn(
-            note,
-            100,
-            MIDI_CH
-        );
-
-        snprintf(
-            buffer,
-            sizeof(buffer),
-            "NoteOn %d",
-            note
-        );
-
+      if (button && !lastJoyBtn[i]) {
+        MIDI.noteOn(note, 100, MIDI_CH);
+        snprintf(buffer, sizeof(buffer), "NoteOn %d", note);
         drawStatus("JoyBtn", buffer);
-      } else if (
-          !button &&
-          lastJoyBtn[i]
-      ) {
-        MIDI.noteOff(
-            note,
-            0,
-            MIDI_CH
-        );
-
-        snprintf(
-            buffer,
-            sizeof(buffer),
-            "NoteOff %d",
-            note
-        );
-
+      } else if (!button && lastJoyBtn[i]) {
+        MIDI.noteOff(note, 0, MIDI_CH);
+        snprintf(buffer, sizeof(buffer), "NoteOff %d", note);
         drawStatus("JoyBtn", buffer);
       }
 
@@ -987,100 +610,65 @@ void loop() {
 
   // ----- ToF -----
 
-  for (
-      uint8_t i = 0;
-      i < tofCount;
-      i++
-  ) {
-    // ToFは毎ループ読まず、
-    // 一定周期で読み取る
-    if (
-        now - lastToFSampleMs[i] <
-        TOF_SAMPLE_INTERVAL_MS
-    ) {
+  for (uint8_t i = 0; i < tofCount; i++) {
+    if (now - lastToFSampleMs[i] < TOF_SAMPLE_INTERVAL_MS) {
       continue;
     }
 
     lastToFSampleMs[i] = now;
 
     uint16_t rawDistance = 0;
-
     if (
-        M5Chain.getToFDistance(
-            tofIds[i],
-            &rawDistance
-        ) != CHAIN_OK
+        M5Chain.getToFDistance(tofIds[i], &rawDistance) != CHAIN_OK
     ) {
       continue;
     }
 
-    // 0は不正値として無視
+    // 0は不正値として扱い、MIDI CCを送信しない。
     if (rawDistance == 0) {
+      tofFilterInitialized[i] = false;
       continue;
     }
 
-    // 有効測距範囲を超えた場合は
-    // 最遠距離として扱い、CC 0へ戻す
-    if (
-        rawDistance >
-        TOF_SENSOR_MAX_MM
-    ) {
-      rawDistance =
-          TOF_SENSOR_MAX_MM;
+    // 最大操作距離を超えたら送信を止める。
+    // フィルターもリセットし、範囲内へ戻った最初の測定値から再開する。
+    if (rawDistance > TOF_FAR_MM) {
+      tofFilterInitialized[i] = false;
+      continue;
     }
 
-    // 公式最小測距距離より近い値は
-    // 最小距離へ制限
-    if (
-        rawDistance <
-        TOF_SENSOR_MIN_MM
-    ) {
-      rawDistance =
-          TOF_SENSOR_MIN_MM;
+    if (rawDistance < TOF_SENSOR_MIN_MM) {
+      rawDistance = TOF_SENSOR_MIN_MM;
     }
 
-    if (!tofFilterInitialized[i]) {
-      // 最初の測定値はそのまま採用
-      filteredToFDistance[i] =
-          rawDistance;
-
-      tofFilterInitialized[i] =
-          true;
+    // 範囲の両端は平滑化せず、CC 127 / 0へ確実に到達させる。
+    if (rawDistance <= TOF_NEAR_MM) {
+      filteredToFDistance[i] = TOF_NEAR_MM;
+      tofFilterInitialized[i] = true;
+    } else if (rawDistance >= TOF_FAR_MM) {
+      filteredToFDistance[i] = TOF_FAR_MM;
+      tofFilterInitialized[i] = true;
+    } else if (!tofFilterInitialized[i]) {
+      filteredToFDistance[i] = rawDistance;
+      tofFilterInitialized[i] = true;
     } else {
-      // 整数演算による指数移動平均
       filteredToFDistance[i] =
           (
-              (uint32_t)
-                  filteredToFDistance[i] *
-              (TOF_FILTER_STRENGTH - 1) +
+              (uint32_t)filteredToFDistance[i] *
+                  (TOF_FILTER_STRENGTH - 1) +
               rawDistance
           ) /
           TOF_FILTER_STRENGTH;
     }
 
-    uint8_t currentCC =
-        tofDistanceToCC(
-            filteredToFDistance[i]
-        );
+    uint8_t currentCC = tofDistanceToCC(filteredToFDistance[i]);
 
-    if (
-        !analogCCChanged(
-            currentCC,
-            lastToFCC[i]
-        )
-    ) {
+    if (!analogCCChanged(currentCC, lastToFCC[i])) {
       continue;
     }
 
-    uint8_t ccNumber =
-        CC_TOF_BASE + i;
-
-    MIDI.controlChange(
-        ccNumber,
-        currentCC,
-        MIDI_CH
-    );
-
+    uint8_t ccNumber = CC_TOF_BASE + i;
+    MIDI.controlChange(ccNumber, currentCC, MIDI_CH);
     lastToFCC[i] = currentCC;
 
     snprintf(
@@ -1091,7 +679,6 @@ void loop() {
         currentCC,
         filteredToFDistance[i]
     );
-
     drawStatus("ToF", buffer);
   }
 
